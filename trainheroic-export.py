@@ -19,6 +19,7 @@ Usage:
     python trainheroic-export.py --output my-export.json
     python trainheroic-export.py --format csv --output ./export-dir/
     python trainheroic-export.py --include-prs
+    python trainheroic-export.py --include-catalog  # Full exercise catalog
     python trainheroic-export.py --incremental  # Only fetch new workouts
     python trainheroic-export.py --all          # Export everything (slow)
 """
@@ -433,7 +434,7 @@ def flatten_to_csv_rows(workouts):
     return rows
 
 
-def write_csv(output_dir, workouts, exercises, personal_records, exercise_history=None):
+def write_csv(output_dir, workouts, exercises, personal_records, exercise_history=None, exercise_catalog=None):
     """Write CSV files to output directory."""
     os.makedirs(output_dir, exist_ok=True)
 
@@ -537,6 +538,16 @@ def write_csv(output_dir, workouts, exercises, personal_records, exercise_histor
                 writer.writerows(history_rows)
             print(f"  Written: {history_path} ({len(history_rows)} rows)", file=sys.stderr)
 
+    # Exercise catalog
+    if exercise_catalog:
+        catalog_path = os.path.join(output_dir, "exercise_catalog.csv")
+        fieldnames = ["id", "title", "video_url", "instruction", "param_1_type", "param_2_type"]
+        with open(catalog_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
+            writer.writeheader()
+            writer.writerows(exercise_catalog)
+        print(f"  Written: {catalog_path} ({len(exercise_catalog)} rows)", file=sys.stderr)
+
 
 def fetch_exercise_history(session_token, user_id, exercise_ids):
     """Fetch detailed history for each exercise."""
@@ -578,6 +589,35 @@ def fetch_exercise_history(session_token, user_id, exercise_ids):
     return history
 
 
+def fetch_exercise_catalog(session_token):
+    """Fetch full exercise catalog from user's history."""
+    try:
+        data = api_request("/v5/users/exercises/history", session_token)
+
+        exercises = []
+        for ex in data if isinstance(data, list) else data.get("exercises", []):
+            exercise = {
+                "id": ex.get("id") or ex.get("exercise_id"),
+                "title": ex.get("title") or ex.get("name", ""),
+            }
+            if ex.get("video_url"):
+                exercise["video_url"] = ex["video_url"]
+            if ex.get("videoUrl"):
+                exercise["video_url"] = ex["videoUrl"]
+            if ex.get("instruction"):
+                exercise["instruction"] = ex["instruction"]
+            if ex.get("param_1_type"):
+                exercise["param_1_type"] = PARAM_TYPES.get(ex["param_1_type"], ex["param_1_type"])
+            if ex.get("param_2_type"):
+                exercise["param_2_type"] = PARAM_TYPES.get(ex["param_2_type"], ex["param_2_type"])
+            exercises.append(exercise)
+
+        return exercises
+    except Exception as e:
+        print(f"Warning: Could not fetch exercise catalog: {e}", file=sys.stderr)
+        return []
+
+
 def main():
     parser = argparse.ArgumentParser(description="Export TrainHeroic workout data")
     parser.add_argument("-o", "--output", default="trainheroic-export.json",
@@ -588,8 +628,10 @@ def main():
                         help="Fetch personal records (slower, one API call per exercise)")
     parser.add_argument("--include-history", action="store_true",
                         help="Fetch detailed exercise history")
+    parser.add_argument("--include-catalog", action="store_true",
+                        help="Fetch full exercise catalog from user history")
     parser.add_argument("--all", action="store_true",
-                        help="Export everything: PRs, exercise history (slowest)")
+                        help="Export everything: PRs, exercise history, catalog (slowest)")
     parser.add_argument("--start-date", default="2020-01-01",
                         help="Start date for workout history (YYYY-MM-DD)")
     parser.add_argument("--end-date", default="2030-12-31",
@@ -602,6 +644,7 @@ def main():
     if args.all:
         args.include_prs = True
         args.include_history = True
+        args.include_catalog = True
 
     # Determine state file location
     if args.format == "csv":
@@ -703,6 +746,12 @@ def main():
         exercise_history = fetch_exercise_history(session, user_id, exercise_ids)
         print(f"  Found history for {len(exercise_history)} exercises", file=sys.stderr)
 
+    exercise_catalog = []
+    if args.include_catalog:
+        print("Fetching exercise catalog...", file=sys.stderr)
+        exercise_catalog = fetch_exercise_catalog(session)
+        print(f"  Found {len(exercise_catalog)} exercises in catalog", file=sys.stderr)
+
     # Handle incremental merge for JSON
     added_count = len(workouts)
     if existing_export and args.format == "json":
@@ -715,7 +764,7 @@ def main():
     # Output
     if args.format == "csv":
         print(f"\nWriting CSV files to {args.output}/", file=sys.stderr)
-        write_csv(args.output, workouts, exercises, personal_records, exercise_history)
+        write_csv(args.output, workouts, exercises, personal_records, exercise_history, exercise_catalog)
     else:
         # Build JSON export
         export = existing_export if existing_export else {
@@ -732,6 +781,8 @@ def main():
                 export["personal_records"] = personal_records
             if exercise_history:
                 export["exercise_history"] = exercise_history
+            if exercise_catalog:
+                export["exercise_catalog"] = exercise_catalog
 
         # Write output
         with open(args.output, "w") as f:
@@ -756,6 +807,8 @@ def main():
         print(f"  - {len(personal_records)} exercises with PRs", file=sys.stderr)
     if exercise_history:
         print(f"  - {len(exercise_history)} exercises with history", file=sys.stderr)
+    if exercise_catalog:
+        print(f"  - {len(exercise_catalog)} exercises in catalog", file=sys.stderr)
 
     completed = sum(1 for w in workouts if w.get("completed"))
     print(f"  - {completed} completed, {len(workouts) - completed} incomplete", file=sys.stderr)

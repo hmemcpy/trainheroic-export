@@ -25,7 +25,10 @@ python trainheroic-export.py --include-prs -o my-export.json
 # Include exercise history
 python trainheroic-export.py --include-history -o my-export.json
 
-# Export EVERYTHING (PRs + history) - slowest but complete
+# Include full exercise catalog (single API call)
+python trainheroic-export.py --include-catalog -o my-export.json
+
+# Export EVERYTHING (PRs + history + catalog) - slowest but complete
 python trainheroic-export.py --all -o my-export.json
 
 # Incremental export (only new workouts since last run)
@@ -40,7 +43,8 @@ python trainheroic-export.py --incremental -o my-export.json
 | `-f, --format` | Output format: `json` (default) or `csv` |
 | `--include-prs` | Fetch personal records (1 API call per exercise) |
 | `--include-history` | Fetch detailed exercise history |
-| `--all` | Export everything: PRs + history (slowest) |
+| `--include-catalog` | Fetch full exercise catalog from user history |
+| `--all` | Export everything: PRs + history + catalog (slowest) |
 | `--incremental` | Only fetch new workouts since last export |
 | `--start-date` | Start date for history (default: 2020-01-01) |
 | `--end-date` | End date for history (default: 2030-12-31) |
@@ -58,8 +62,10 @@ trainheroic-export.json
 ├── user             # User profile
 ├── profile_stats    # Aggregate statistics
 ├── workouts[]       # Array of workouts
-├── exercises[]      # Exercise library
-└── personal_records[] # PRs by exercise (if --include-prs)
+├── exercises[]      # Exercise library (extracted from workouts)
+├── personal_records[] # PRs by exercise (if --include-prs)
+├── exercise_history[] # Detailed history (if --include-history)
+└── exercise_catalog[] # Full exercise catalog (if --include-catalog)
 ```
 
 ### CSV
@@ -70,9 +76,10 @@ Multiple files in output directory:
 export-data/
 ├── workouts.csv          # One row per workout (summary)
 ├── sets.csv              # One row per set (detailed, flattened)
-├── exercises.csv         # Exercise library
+├── exercises.csv         # Exercise library (extracted from workouts)
 ├── personal_records.csv  # PRs (if --include-prs or --all)
 ├── exercise_history.csv  # History (if --include-history or --all)
+├── exercise_catalog.csv  # Full catalog (if --include-catalog or --all)
 └── .trainheroic-export-state.json  # State for incremental exports
 ```
 
