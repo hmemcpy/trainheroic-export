@@ -1,0 +1,326 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trainheroic.com/export/v1/schema.json",
+  "title": "TrainHeroic Workout Export",
+  "description": "Exported workout data from TrainHeroic app",
+  "type": "object",
+  "required": ["version", "exported_at", "user", "workouts"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Export schema version"
+    },
+    "exported_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of export"
+    },
+    "user": {
+      "$ref": "#/$defs/User"
+    },
+    "profile_stats": {
+      "$ref": "#/$defs/ProfileStats"
+    },
+    "workouts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Workout"
+      }
+    },
+    "exercises": {
+      "type": "array",
+      "description": "Exercise library with metadata",
+      "items": {
+        "$ref": "#/$defs/Exercise"
+      }
+    },
+    "personal_records": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/PersonalRecord"
+      }
+    }
+  },
+  "$defs": {
+    "User": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "description": "TrainHeroic user ID"
+        },
+        "name": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "use_metric": {
+          "type": "boolean",
+          "description": "True for kg, false for lb"
+        }
+      }
+    },
+    "ProfileStats": {
+      "type": "object",
+      "description": "Aggregate training statistics (all-time)",
+      "properties": {
+        "total_sessions": {
+          "type": "integer"
+        },
+        "total_reps": {
+          "type": "integer"
+        },
+        "total_volume_kg": {
+          "type": "number",
+          "description": "Total weight lifted in kg"
+        },
+        "total_exercises": {
+          "type": "integer"
+        },
+        "unique_exercises": {
+          "type": "integer"
+        }
+      }
+    },
+    "Workout": {
+      "type": "object",
+      "required": ["id", "date", "title"],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "description": "Unique workout instance ID"
+        },
+        "date": {
+          "type": "string",
+          "format": "date",
+          "description": "Scheduled date (YYYY-MM-DD)"
+        },
+        "title": {
+          "type": "string"
+        },
+        "program": {
+          "type": "string",
+          "description": "Program/team name"
+        },
+        "completed": {
+          "type": "boolean"
+        },
+        "completion_percent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When workout was started"
+        },
+        "completed_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When workout was completed"
+        },
+        "notes": {
+          "type": "string",
+          "description": "User notes for the workout"
+        },
+        "rpe": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 10,
+          "description": "Rate of Perceived Exertion"
+        },
+        "blocks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WorkoutBlock"
+          }
+        }
+      }
+    },
+    "WorkoutBlock": {
+      "type": "object",
+      "description": "A block/section within a workout (e.g., Warm-up, Strength)",
+      "required": ["title", "exercises"],
+      "properties": {
+        "id": {
+          "type": "integer"
+        },
+        "title": {
+          "type": "string"
+        },
+        "instruction": {
+          "type": "string"
+        },
+        "order": {
+          "type": "integer"
+        },
+        "completed": {
+          "type": "boolean"
+        },
+        "exercises": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LoggedExercise"
+          }
+        }
+      }
+    },
+    "LoggedExercise": {
+      "type": "object",
+      "required": ["exercise_id", "title"],
+      "properties": {
+        "exercise_id": {
+          "type": "integer",
+          "description": "Reference to exercise library"
+        },
+        "title": {
+          "type": "string"
+        },
+        "instruction": {
+          "type": "string",
+          "description": "Coach instructions for this exercise"
+        },
+        "video_url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "order": {
+          "type": "integer"
+        },
+        "notes": {
+          "type": "string",
+          "description": "User notes for this exercise"
+        },
+        "sets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Set"
+          }
+        }
+      }
+    },
+    "Set": {
+      "type": "object",
+      "description": "A single set within an exercise",
+      "properties": {
+        "set_number": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "prescribed": {
+          "$ref": "#/$defs/SetData",
+          "description": "What the coach prescribed"
+        },
+        "actual": {
+          "$ref": "#/$defs/SetData",
+          "description": "What the athlete logged"
+        },
+        "completed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "SetData": {
+      "type": "object",
+      "description": "Set parameters (reps, weight, time, etc.)",
+      "properties": {
+        "reps": {
+          "type": "integer"
+        },
+        "weight_kg": {
+          "type": "number"
+        },
+        "weight_lb": {
+          "type": "number"
+        },
+        "duration_seconds": {
+          "type": "integer",
+          "description": "For timed exercises"
+        },
+        "distance_meters": {
+          "type": "number"
+        },
+        "rpe": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 10
+        },
+        "percentage": {
+          "type": "number",
+          "description": "Percentage of 1RM if prescribed that way"
+        }
+      }
+    },
+    "Exercise": {
+      "type": "object",
+      "description": "Exercise from the library",
+      "required": ["id", "title"],
+      "properties": {
+        "id": {
+          "type": "integer"
+        },
+        "title": {
+          "type": "string"
+        },
+        "video_url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "category": {
+          "type": "string"
+        },
+        "equipment": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "muscles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "PersonalRecord": {
+      "type": "object",
+      "required": ["exercise_id", "exercise_title"],
+      "properties": {
+        "exercise_id": {
+          "type": "integer"
+        },
+        "exercise_title": {
+          "type": "string"
+        },
+        "estimated_1rm_kg": {
+          "type": "number"
+        },
+        "records": {
+          "type": "array",
+          "description": "PRs by rep count",
+          "items": {
+            "type": "object",
+            "properties": {
+              "reps": {
+                "type": "integer"
+              },
+              "weight_kg": {
+                "type": "number"
+              },
+              "date": {
+                "type": "string",
+                "format": "date"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
