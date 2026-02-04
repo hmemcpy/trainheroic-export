@@ -107,16 +107,113 @@ https://api.trainheroic.com/v5/
 | `/v5/notifications/settings/getReset` | GET | Notification reset settings |
 | `/v5/messaging/reactions` | GET | Available message reactions |
 
+#### Exercise Details (from frida capture)
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/v5/exercises/{id}/personalRecords` | GET | Personal records for exercise |
+| `/v5/exercises/{id}/stackUp/isSupportedExercise` | GET | Check if exercise supports stack-up comparison |
+| `/v5/exercises/{id}/stats` | GET | Exercise statistics |
+
+#### Workout Management
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/3.0/athlete/programworkout/finish` | POST | Mark workout as finished |
+| `/3.0/athlete/savedWorkout/futureSessions` | GET | Upcoming scheduled sessions |
+| `/3.0/athlete/savedWorkout/futureSessionsToReschedule?dateRescheduled={date}` | GET | Sessions to reschedule |
+| `/3.0/athlete/savedworkout/hasBeenLogged` | GET | Check if workout has been logged |
+| `/v5/programWorkouts/personalRecords` | GET | Personal records across program workouts |
+| `/v5/programWorkouts/publish` | POST | Publish program workouts (coach) |
+| `/v5/workoutCombos` | GET | Workout combinations |
+| `/v5/workoutSetExercises` | GET | Workout set exercise details |
+| `/v5/workoutSets` | GET | Workout set details |
+| `/v5/workoutStats/trainingLoad` | GET | Training load statistics |
+| `/v5/workouts` | GET | Workouts |
+| `/v5/savedWorkoutSetExercises` | GET | Saved workout set exercise details |
+
+#### Personal Calendar
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/v5/personalCalendar/programAndLog` | GET | Personal calendar program and log combined |
+| `/v5/personalCalendar/workoutSetExercises` | GET | Calendar workout set exercises |
+| `/v5/personalCalendar/workoutSets` | GET | Calendar workout sets |
+| `/v5/personalCalendar/workouts` | GET | Calendar workouts |
+| `/1.0/athlete/programming/updatePersonalCalendar` | PUT | Update personal calendar |
+| `/1.0/athlete/programming/removeProgramFromPersonalCalendar` | DELETE | Remove program from calendar |
+
+#### Comments
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/1.0/athlete/savedworkoutset/comments/{id}` | GET/POST | Comments on a workout set |
+| `/1.0/athlete/savedworkoutsetexercise/comments?lastCommentId={id}` | GET | Comments on exercise, paginated by last comment |
+
 #### Streaks & Calendars
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
-| `/v5/sessions/streaks/summary` | GET | Training streak data |
+| `/v5/sessions/streaks/summary?tzName={tz}` | GET | Training streak data |
 | `/v5/calendars/athletes/{id}/coachAthleteTeam` | GET | Coach/team calendar |
+| `/v5/calendars/teams/year` | GET | Team year calendar |
+
+#### Monitoring & Readiness
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/v5/monitoring/trends/shortTerm` | GET | Short-term readiness trends |
+| `/v5/monitoring/trends/longTermAverageStandardDeviation` | GET | Long-term readiness averages |
+
+#### User Account
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/v5/users/account/resetPasswordWithForm` | POST | Reset password with form |
+| `/v5/users/account/verifyForgotPasswordSecret` | POST | Verify forgot password token |
+| `/v5/users/createAthleteAccount` | POST | Create athlete account |
+| `/v5/userAgreementTerms/agreeToTerms` | POST | Accept terms of service |
+| `/v5/emails/validate` | GET | Validate email address |
+| `/v5/userWorkingMaxes` | GET/PUT | User working maxes (bulk) |
+| `/1.0/user/payment/code` | POST | Payment code redemption |
+| `/1.0/user/username-new` | PUT | Update username |
+| `/1.0/user/email-address` | PUT | Update email address |
+
+#### Athlete Onboarding & Surveys
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/v5/trackAthleteOnboardingPath` | POST | Track onboarding progress |
+| `/v5/athleteTrialLicense` | GET/POST | Athlete trial license |
+| `/1.0/athlete/survey/downgradeCode` | GET | Downgrade survey code |
+| `/1.0/athlete/survey/question` | GET | Survey questions |
+
+#### Notification Settings (detailed)
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/v5/notifications/settings/getReset` | GET | Get reset notification settings |
+| `/v5/notifications/settings/setReset` | PUT | Set reset notification settings |
+| `/v5/notifications/settings/setAllEmail` | PUT | Toggle all email notifications |
+| `/v5/notifications/settings/setAllPush` | PUT | Toggle all push notifications |
+| `/v5/notifications/settings/setOnBoardingPush` | PUT | Set onboarding push notifications |
+| `/v5/notifications/settings/setOnBoardingEmail` | PUT | Set onboarding email notifications |
+
+#### Messaging
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/v5/messaging/streams` | GET | Message streams/conversations |
+| `/v5/messaging/streams/athletes` | GET | Athlete message streams |
+| `/v5/messaging/streams/programWorkouts` | GET | Program workout message streams |
+
+#### Features
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/v5/features` | GET | Global feature flags |
+
+#### Leaderboard
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/1.0/athlete/leaderboard/likeResult` | POST | Like a leaderboard result |
+| `/3.0/athlete/leaderboard/{id}/feedItem` | GET | Leaderboard feed item |
+| `/1.0/athlete/programming/circuitLeaderboard/filters?userId={id}` | GET | Circuit leaderboard filters |
 
 #### Telemetry
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
 | `/v5/telemetry/track` | POST | Analytics events |
+| `/v5/telemetry/trackAccessCode` | POST | Track access code usage |
 
 #### Push Tokens
 | Endpoint | Method | Purpose |
@@ -132,6 +229,72 @@ https://api.trainheroic.com/v5/
 **Note:** There is no explicit session destroy endpoint. Logout consists of:
 1. DELETE push token registration
 2. Clear session token locally (subsequent requests get 401)
+
+#### File Upload
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/1.0/utility/files?check=fileUploadGainz&type={type}` | POST | File upload (images, videos) |
+
+---
+
+### Coach Endpoints (requires coach-role session token)
+
+**Note:** These endpoints were extracted from the APK's Hermes bytecode and jadx decompilation. They return `401 Unauthorized` with an athlete session token. The app uses the same APK for both athlete and coach roles, with UI gated by the user's role.
+
+#### Coach Teams & Athletes
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/1.0/coach/teams` | GET | List all teams the coach manages |
+| `/1.0/coach/team/create` | POST | Create a new team |
+| `/v5/coaches/activity/athletes` | GET | Activity feed for all athletes |
+| `/v5/coaches/activity/newAthletes` | GET | Recently joined athletes |
+| `/v5/coaches/activity/teams` | GET | Activity feed across teams |
+| `/v5/coaches/org` | GET | Coach organization info |
+| `/v5/headCoach` | GET | Head coach info |
+| `/v5/athletes/inviteToTeam` | POST | Invite athlete to a team |
+| `/v5/athletes/inviteToOrg` | POST | Invite athlete to organization |
+| `/v5/teamAccess/code` | GET/POST | Team access via code |
+| `/v5/teamAccess/email` | GET/POST | Team access via email |
+| `/v5/calendars/teams/year` | GET | Team year calendar overview |
+
+#### Coach Workout Management
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/3.0/coach/athlete/programworkout/range` | GET | View athlete's workout schedule (coach perspective) |
+| `/1.0/coach/savedworkout/dashboard/header/addExercisesToProgramWorkout` | POST | Add exercises to a program workout |
+| `/1.0/coach/savedworkoutset/disable` | PUT | Disable a workout set |
+| `/1.0/coach/savedworkoutsetexercise/duplicate` | POST | Duplicate an exercise in a workout |
+| `/1.0/athlete/savedworkout/coachAthleteTeam` | GET | Saved workout data in coach/team context |
+
+#### Coach Programming
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/v5/lowProgramming/teams` | GET | Low-level programming across teams |
+| `/v5/programWorkouts/publish` | POST | Publish program workouts to athletes |
+
+#### Coach-Specific Redux Actions (from bytecode, indicating data flows)
+| Action Name | Inferred Behavior |
+|---|---|
+| `coach_log_for_athlete` | Coach can log workouts on behalf of an athlete |
+| `coach-athletes-list-load-athlete-summary-stats` | Bulk load summary stats for all athletes |
+| `coach-teams-list-load-program-workoutset` | Load program workout sets across all teams |
+| `coach-invites-list-load` | Load pending team invitations |
+| `coach-team-context-set-count-initialize` | Initialize athlete count for team context |
+| `coach_show_nutrition_on_calendar` | Toggle nutrition display on athlete calendar |
+| `coach_create_exercise` | Coach creating custom exercises |
+| `coach_publish` | Publishing programs/workouts |
+| `coach_programming` | Programming interface data |
+
+#### Inferred Coach Data Access Pattern
+
+Based on the code structure:
+1. **Coach lists their teams** via `/1.0/coach/teams`
+2. **Team contains athlete roster** - team data includes athlete IDs and summary info
+3. **Coach views individual athlete** via `/3.0/coach/athlete/programworkout/range` with an athlete ID parameter
+4. **Bulk athlete stats** loaded via `coach-athletes-list-load-athlete-summary-stats` action
+5. **No single "export all trainees" endpoint** - the coach fetches per-athlete or per-team
+
+To fully map the coach API, inspect the unobfuscated web app at `https://app.trainheroic.com` (JavaScript source is readable in browser DevTools).
 
 ### Request Format
 
@@ -385,6 +548,10 @@ python trainheroic-export.py --incremental -o my-export.json
 4. **Workout data includes full exercise details** - No separate exercise database download
 5. **Session tokens are long-lived** - ~33 minutes reported TTL, but generally work longer
 6. **Program-scoped data** - Workout history only accessible for current program
+
+---
+
+> **Deep technical analysis** (Hermes decompilation, OkHttp internals, frida instrumentation, service module mappings) has been moved to [APK-ANALYSIS.md](APK-ANALYSIS.md).
 
 ---
 
