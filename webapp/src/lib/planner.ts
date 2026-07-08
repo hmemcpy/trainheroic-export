@@ -490,6 +490,18 @@ export function adjustTrainingDays(
 	});
 }
 
+export function adjustStartDate(
+	plan: GeneratedPlan,
+	data: ExportData,
+	catalog: CatalogExercise[],
+	startDate: string,
+): GeneratedPlan {
+	return generatePlan(data, catalog, {
+		...plan.settings,
+		startDate,
+	});
+}
+
 export function catalogFamilies(catalog: CatalogExercise[]): string[] {
 	return Array.from(
 		new Set(catalog.map((exercise) => detectFamily(exercise.title))),

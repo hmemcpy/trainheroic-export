@@ -27,11 +27,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { createWorkoutTemplate, publishProgramWorkout } from "@/lib/api";
 import {
 	addWorkout,
+	adjustStartDate,
 	adjustTrainingDays,
 	catalogFamilies,
 	defaultPlanSettings,
 	generatePlan,
-	moveWorkoutDate,
 	replaceExercise,
 	setWorkoutStatus,
 	summarizeVolume,
@@ -160,8 +160,13 @@ export function PlannerWorkspace({
 		);
 	}
 
-	function updateDate(workoutId: string, date: string) {
-		setPlan((current) => moveWorkoutDate(current, workoutId, date));
+	function updateStartWeek(startDate: string) {
+		const nextPlan = adjustStartDate(plan, data, catalog, startDate);
+		setPlan(nextPlan);
+		setSelectedWorkoutId(nextPlan.workouts[0]?.id || "");
+		setSelectedExerciseId(
+			nextPlan.workouts[0]?.blocks[0]?.exercises[0]?.id || "",
+		);
 	}
 
 	function updateSet(
@@ -265,6 +270,22 @@ export function PlannerWorkspace({
 					</div>
 
 					<div className="border-stone-100/10 border-t p-5">
+						<Label className="text-[0.65rem] font-bold tracking-[0.18em] text-stone-400 uppercase">
+							Starting week
+						</Label>
+						<Input
+							type="date"
+							value={plan.settings.startDate}
+							onChange={(event) => updateStartWeek(event.target.value)}
+							className="mt-3 h-10 rounded-lg border-stone-100/20 bg-stone-100/10 text-stone-100"
+						/>
+						<p className="mt-3 text-xs text-stone-400">
+							Pick the week the block should begin. Workout dates are generated
+							from your selected training days.
+						</p>
+					</div>
+
+					<div className="border-stone-100/10 border-t p-5">
 						<p className="text-[0.65rem] font-bold tracking-[0.18em] text-stone-400 uppercase">
 							Weekly days
 						</p>
@@ -296,10 +317,10 @@ export function PlannerWorkspace({
 
 					<div className="border-stone-100/10 border-y p-5">
 						<div className="grid gap-3">
-							<LiftMax label="Squat TM" value={plan.trainingMaxes.squat} />
-							<LiftMax label="Bench TM" value={plan.trainingMaxes.bench} />
+							<LiftMax label="Squat Max" value={plan.trainingMaxes.squat} />
+							<LiftMax label="Bench Max" value={plan.trainingMaxes.bench} />
 							<LiftMax
-								label="Deadlift TM"
+								label="Deadlift Max"
 								value={plan.trainingMaxes.deadlift}
 							/>
 						</div>
@@ -361,7 +382,6 @@ export function PlannerWorkspace({
 							workout={selectedWorkout}
 							selectedExerciseId={selectedExerciseId}
 							onSelectExercise={setSelectedExerciseId}
-							onDateChange={updateDate}
 							onSetChange={updateSet}
 							onPublish={publishWorkout}
 						/>
@@ -539,14 +559,12 @@ function WorkoutEditor({
 	workout,
 	selectedExerciseId,
 	onSelectExercise,
-	onDateChange,
 	onSetChange,
 	onPublish,
 }: {
 	workout: PlannedWorkout;
 	selectedExerciseId: string;
 	onSelectExercise: (id: string) => void;
-	onDateChange: (workoutId: string, date: string) => void;
 	onSetChange: (
 		workoutId: string,
 		exercise: PlannedExercise,
@@ -580,14 +598,9 @@ function WorkoutEditor({
 					<div className="flex flex-wrap items-end gap-3">
 						<div className="grid gap-1">
 							<Label className="text-xs text-zinc-500">Date</Label>
-							<Input
-								type="date"
-								value={workout.date}
-								onChange={(event) =>
-									onDateChange(workout.id, event.target.value)
-								}
-								className="h-10 w-40 rounded-lg border-zinc-300 bg-white"
-							/>
+							<div className="flex h-10 w-40 items-center rounded-lg border border-zinc-200 bg-white px-3 text-sm font-semibold text-zinc-900">
+								{formatDate(workout.date)}
+							</div>
 						</div>
 						<div className="rounded-xl border border-zinc-200 bg-white px-4 py-2">
 							<p className="text-xs font-semibold text-zinc-500">Budget</p>
