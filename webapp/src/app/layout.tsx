@@ -14,8 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-	title: "TrainHeroic Export",
-	description: "Export and view your TrainHeroic training history",
+	title: "TrainHeroic Programming",
+	description:
+		"Analyze TrainHeroic history and program the next training block",
 };
 
 export default function RootLayout({

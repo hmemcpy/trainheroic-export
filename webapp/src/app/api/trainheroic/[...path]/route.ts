@@ -20,16 +20,23 @@ async function proxyRequest(
 		);
 	}
 
-	const resp = await fetch(`${API_BASE}${apiPath}${queryString}`, {
+	const init: RequestInit = {
 		method: request.method,
 		headers: {
 			"session-token": sessionToken,
 			"x-mobile-app-version": APP_VERSION,
 			"Content-Type": "application/json",
 		},
-	});
+	};
 
-	const data = await resp.json();
+	if (!["GET", "HEAD"].includes(request.method)) {
+		const body = await request.text();
+		if (body) init.body = body;
+	}
+
+	const resp = await fetch(`${API_BASE}${apiPath}${queryString}`, init);
+
+	const data = await resp.json().catch(() => ({}));
 
 	if (!resp.ok) {
 		return NextResponse.json(data, { status: resp.status });
@@ -46,6 +53,20 @@ export async function GET(
 }
 
 export async function POST(
+	request: NextRequest,
+	context: { params: Promise<{ path: string[] }> },
+) {
+	return proxyRequest(request, context.params);
+}
+
+export async function PUT(
+	request: NextRequest,
+	context: { params: Promise<{ path: string[] }> },
+) {
+	return proxyRequest(request, context.params);
+}
+
+export async function DELETE(
 	request: NextRequest,
 	context: { params: Promise<{ path: string[] }> },
 ) {
