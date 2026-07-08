@@ -24,18 +24,33 @@ export async function login(
 	}
 
 	const data = await resp.json();
-	return { session_id: data.session_id, user_id: data.id };
+	return { session_id: "", user_id: data.id };
+}
+
+export async function savedSession(): Promise<AuthSession | null> {
+	const resp = await fetch("/api/auth");
+	if (!resp.ok) return null;
+	const data = await resp.json();
+	return { session_id: "", user_id: data.id };
+}
+
+export async function logout() {
+	await fetch("/api/auth", { method: "DELETE" });
 }
 
 async function apiRequest<T>(
 	path: string,
 	sessionToken: string,
-	options: RequestInit = {},
+	options: RequestInit & { refreshCache?: boolean } = {},
 ): Promise<T> {
+	const { refreshCache, ...init } = options;
 	const resp = await fetch(`/api/trainheroic${path}`, {
-		...options,
-		headers: { "x-session-token": sessionToken },
-		body: options.body,
+		...init,
+		headers: {
+			...(sessionToken ? { "x-session-token": sessionToken } : {}),
+			...(refreshCache ? { "x-refresh-cache": "1" } : {}),
+		},
+		body: init.body,
 	});
 
 	if (!resp.ok) {
@@ -100,20 +115,29 @@ export async function fetchExerciseCatalog(
 	sessionToken: string,
 	userId: number,
 	teamId?: number,
+	refreshCache = false,
 ): Promise<CatalogExercise[]> {
 	const params = new URLSearchParams();
 	params.set("userId", String(userId));
 	if (teamId) params.set("teamId", String(teamId));
-	return apiGet<CatalogExercise[]>(
+	return apiRequest<CatalogExercise[]>(
 		`/v5/users/exercises?${params.toString()}`,
 		sessionToken,
+		{ refreshCache },
 	);
 }
 
 export async function fetchRecentExercises(
 	sessionToken: string,
+	refreshCache = false,
 ): Promise<CatalogExercise[]> {
-	return apiGet<CatalogExercise[]>("/v5/users/exercises/recent", sessionToken);
+	return apiRequest<CatalogExercise[]>(
+		"/v5/users/exercises/recent",
+		sessionToken,
+		{
+			refreshCache,
+		},
+	);
 }
 
 export async function createWorkoutTemplate(

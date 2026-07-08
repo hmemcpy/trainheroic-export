@@ -180,7 +180,7 @@ export function Dashboard({
 											{exercise.title}
 										</p>
 										<p className="mt-1 text-xs text-zinc-500">
-											ID {exercise.id}
+											Available for programming
 										</p>
 									</div>
 								))}

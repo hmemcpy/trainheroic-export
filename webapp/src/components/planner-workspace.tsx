@@ -95,6 +95,9 @@ export function PlannerWorkspace({
 	const [athleteId, setAthleteId] = useState<number | undefined>(
 		() => athletes[0]?.id,
 	);
+	const [pendingReplacement, setPendingReplacement] =
+		useState<CatalogExercise | null>(null);
+	const [undoPlan, setUndoPlan] = useState<GeneratedPlan | null>(null);
 	const [publishingAll, setPublishingAll] = useState(false);
 
 	const selectedWorkout =
@@ -138,6 +141,8 @@ export function PlannerWorkspace({
 			startDate: plan.settings.startDate,
 		});
 		setPlan(nextPlan);
+		setUndoPlan(null);
+		setPendingReplacement(null);
 		setSelectedWorkoutId(nextPlan.workouts[0]?.id || "");
 		setSelectedExerciseId(
 			nextPlan.workouts[0]?.blocks[0]?.exercises[0]?.id || "",
@@ -154,6 +159,8 @@ export function PlannerWorkspace({
 		}
 		const nextPlan = adjustTrainingDays(plan, data, catalog, nextDays);
 		setPlan(nextPlan);
+		setUndoPlan(null);
+		setPendingReplacement(null);
 		setSelectedWorkoutId(nextPlan.workouts[0]?.id || "");
 		setSelectedExerciseId(
 			nextPlan.workouts[0]?.blocks[0]?.exercises[0]?.id || "",
@@ -163,6 +170,8 @@ export function PlannerWorkspace({
 	function updateStartWeek(startDate: string) {
 		const nextPlan = adjustStartDate(plan, data, catalog, startDate);
 		setPlan(nextPlan);
+		setUndoPlan(null);
+		setPendingReplacement(null);
 		setSelectedWorkoutId(nextPlan.workouts[0]?.id || "");
 		setSelectedExerciseId(
 			nextPlan.workouts[0]?.blocks[0]?.exercises[0]?.id || "",
@@ -185,16 +194,31 @@ export function PlannerWorkspace({
 		);
 	}
 
-	function swapExercise(replacement: CatalogExercise) {
-		if (!selectedWorkout || !selectedExercise) return;
+	function stageReplacement(replacement: CatalogExercise) {
+		setPendingReplacement(replacement);
+	}
+
+	function applyReplacement() {
+		if (!selectedWorkout || !selectedExercise || !pendingReplacement) return;
+		setUndoPlan(plan);
 		setPlan((current) =>
 			replaceExercise(
 				current,
 				selectedWorkout.id,
 				selectedExercise.id,
-				replacement,
+				pendingReplacement,
 			),
 		);
+		toast.success(`Replaced with ${pendingReplacement.title}`);
+		setPendingReplacement(null);
+	}
+
+	function undoLastChange() {
+		if (!undoPlan) return;
+		setPlan(undoPlan);
+		setUndoPlan(null);
+		setPendingReplacement(null);
+		toast.success("Restored previous plan");
 	}
 
 	async function publishWorkout(workout: PlannedWorkout) {
@@ -339,6 +363,7 @@ export function PlannerWorkspace({
 											setSelectedExerciseId(
 												workout.blocks[0]?.exercises[0]?.id || "",
 											);
+											setPendingReplacement(null);
 										}}
 										className={cn(
 											"w-full rounded-xl border p-3 text-left transition",
@@ -444,8 +469,13 @@ export function PlannerWorkspace({
 								<button
 									key={exercise.id}
 									type="button"
-									onClick={() => swapExercise(exercise)}
-									className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-left shadow-sm transition hover:border-emerald-400 hover:bg-emerald-50"
+									onClick={() => stageReplacement(exercise)}
+									className={cn(
+										"w-full rounded-xl border bg-white p-3 text-left shadow-sm transition hover:border-emerald-400 hover:bg-emerald-50",
+										pendingReplacement?.id === exercise.id
+											? "border-emerald-500 ring-4 ring-emerald-100"
+											: "border-zinc-200",
+									)}
 								>
 									<div className="flex items-start justify-between gap-3">
 										<p className="text-sm font-semibold text-zinc-900">
@@ -453,10 +483,11 @@ export function PlannerWorkspace({
 										</p>
 										<ChevronsUpDown className="size-4 text-zinc-400" />
 									</div>
-									<p className="mt-2 text-xs text-zinc-500">
-										ID {exercise.id}
-										{exercise.use_count ? ` / used ${exercise.use_count}` : ""}
-									</p>
+									{exercise.use_count ? (
+										<p className="mt-2 text-xs text-zinc-500">
+											Used in your catalog
+										</p>
+									) : null}
 								</button>
 							))}
 							{filteredCatalog.length === 0 && (
@@ -469,6 +500,32 @@ export function PlannerWorkspace({
 
 					<div className="border-zinc-900/10 border-t p-4">
 						<div className="grid gap-3">
+							<div className="rounded-xl border border-zinc-200 bg-white p-3">
+								<p className="text-xs font-bold tracking-[0.16em] text-zinc-500 uppercase">
+									Replacement
+								</p>
+								<p className="mt-2 text-sm font-semibold text-zinc-950">
+									{pendingReplacement
+										? pendingReplacement.title
+										: "Choose an exercise to preview"}
+								</p>
+								<div className="mt-3 grid grid-cols-2 gap-2">
+									<Button
+										variant="outline"
+										disabled={!undoPlan}
+										onClick={undoLastChange}
+									>
+										Undo
+									</Button>
+									<Button
+										className="bg-emerald-600 hover:bg-emerald-700"
+										disabled={!pendingReplacement}
+										onClick={applyReplacement}
+									>
+										Apply
+									</Button>
+								</div>
+							</div>
 							<div className="grid gap-1.5">
 								<Label className="text-xs text-zinc-500">Team</Label>
 								<select
@@ -681,7 +738,7 @@ function WorkoutEditor({
 													</Badge>
 												</div>
 												<p className="mt-1 text-xs text-zinc-500">
-													{exercise.family} / exercise #{exercise.exercise_id}
+													{exercise.family} movement
 												</p>
 												{exercise.instruction && (
 													<p className="mt-2 max-w-3xl text-xs leading-5 text-zinc-600">

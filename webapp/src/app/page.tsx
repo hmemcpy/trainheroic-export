@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Toaster, toast } from "sonner";
 import { Dashboard } from "@/components/dashboard";
 import { LoadingScreen } from "@/components/loading-screen";
@@ -14,6 +14,8 @@ import {
 	fetchUserProfile,
 	fetchWorkouts,
 	login,
+	logout,
+	savedSession,
 } from "@/lib/api";
 import {
 	extractExercises,
@@ -21,6 +23,7 @@ import {
 	transformWorkout,
 } from "@/lib/transform";
 import type {
+	AuthSession,
 	CatalogExercise,
 	ExerciseWithHistory,
 	ExportData,
@@ -45,14 +48,16 @@ export default function Home() {
 			token = sessionToken,
 			currentUserId = userId,
 			currentTeams = teams,
+			refreshCache = true,
 		) => {
-			if (!token || !currentUserId) return;
+			if (!currentUserId) return;
 			setCatalogLoading(true);
 			try {
 				const freshCatalog = await loadAvailableCatalog(
 					token,
 					currentUserId,
 					currentTeams,
+					refreshCache,
 				);
 				setCatalog(freshCatalog);
 			} finally {
@@ -62,12 +67,10 @@ export default function Home() {
 		[sessionToken, teams, userId],
 	);
 
-	const handleLogin = useCallback(async (email: string, password: string) => {
+	const loadSessionData = useCallback(async (session: AuthSession) => {
 		setLoading(true);
 
 		try {
-			setLoadingMessage("Signing in...");
-			const session = await login(email, password);
 			setSessionToken(session.session_id);
 			setUserId(session.user_id);
 
@@ -89,6 +92,7 @@ export default function Home() {
 				session.session_id,
 				session.user_id,
 				loadedTeams,
+				false,
 			);
 
 			setLoadingMessage(`Processing ${rawWorkouts.length} workouts...`);
@@ -132,7 +136,40 @@ export default function Home() {
 		}
 	}, []);
 
-	const handleLogout = useCallback(() => {
+	useEffect(() => {
+		let canceled = false;
+		async function restoreSession() {
+			const session = await savedSession();
+			if (!session || canceled) return;
+			try {
+				await loadSessionData(session);
+			} catch {
+				await logout();
+				if (!canceled) toast.error("Saved TrainHeroic session expired");
+			}
+		}
+		restoreSession();
+		return () => {
+			canceled = true;
+		};
+	}, [loadSessionData]);
+
+	const handleLogin = useCallback(
+		async (email: string, password: string) => {
+			setLoading(true);
+			try {
+				setLoadingMessage("Signing in...");
+				const session = await login(email, password);
+				await loadSessionData(session);
+			} finally {
+				setLoading(false);
+			}
+		},
+		[loadSessionData],
+	);
+
+	const handleLogout = useCallback(async () => {
+		await logout();
 		setExportData(null);
 		setExercises([]);
 		setCatalog([]);
@@ -170,13 +207,25 @@ async function loadAvailableCatalog(
 	sessionToken: string,
 	userId: number,
 	teams: TrainHeroicTeam[],
+	refreshCache: boolean,
 ): Promise<CatalogExercise[]> {
 	const requests = teams.length
 		? teams.map((team) =>
-				fetchExerciseCatalog(sessionToken, userId, team.id).catch(() => []),
+				fetchExerciseCatalog(sessionToken, userId, team.id, refreshCache).catch(
+					() => [],
+				),
 			)
-		: [fetchExerciseCatalog(sessionToken, userId).catch(() => [])];
-	requests.push(fetchRecentExercises(sessionToken).catch(() => []));
+		: [
+				fetchExerciseCatalog(
+					sessionToken,
+					userId,
+					undefined,
+					refreshCache,
+				).catch(() => []),
+			];
+	requests.push(
+		fetchRecentExercises(sessionToken, refreshCache).catch(() => []),
+	);
 	const results = await Promise.all(requests);
 	return dedupeCatalog(results.flat());
 }
