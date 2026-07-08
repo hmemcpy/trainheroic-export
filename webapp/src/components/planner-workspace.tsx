@@ -682,18 +682,17 @@ function WorkoutEditor({
 										</button>
 
 										<div className="mt-4 overflow-x-auto">
-											<div className="grid min-w-[34rem] grid-cols-[70px_repeat(4,minmax(0,1fr))] gap-2 text-xs font-semibold text-zinc-500">
+											<div className="grid min-w-[28rem] grid-cols-[70px_repeat(3,minmax(0,1fr))] gap-2 text-xs font-semibold text-zinc-500">
 												<span>Set</span>
 												<span>Weight</span>
 												<span>Reps</span>
 												<span>RPE</span>
-												<span>Load</span>
 											</div>
 											<div className="mt-2 grid gap-2">
 												{exercise.sets.map((set) => (
 													<div
 														key={set.id}
-														className="grid min-w-[34rem] grid-cols-[70px_repeat(4,minmax(0,1fr))] items-center gap-2"
+														className="grid min-w-[28rem] grid-cols-[70px_repeat(3,minmax(0,1fr))] items-center gap-2"
 													>
 														<span className="text-sm font-bold text-zinc-900">
 															#{set.set_number}
@@ -729,9 +728,6 @@ function WorkoutEditor({
 														/>
 														<span className="rounded-lg bg-zinc-100 px-3 py-2 text-sm text-zinc-700">
 															{set.rpe?.toFixed(1) || "-"}
-														</span>
-														<span className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800">
-															{Math.round((set.weight_kg || 0) * set.reps)} kg
 														</span>
 													</div>
 												))}

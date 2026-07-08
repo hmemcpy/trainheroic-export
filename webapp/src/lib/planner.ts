@@ -13,6 +13,7 @@ import type {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_DAYS = [0, 1, 3, 4];
+const WOMENS_EITHER_OR_PATTERNS = [/hip thrust/i];
 
 interface ExerciseStats {
 	exercise_id: number;
@@ -61,7 +62,7 @@ const TEMPLATES: DayTemplate[] = [
 		focus: "Squat + bench volume",
 		title: "Squat Priority / Bench Volume",
 		cutRule:
-			"If time runs short, keep the row and lateral raise and skip the hip thrust.",
+			"If time runs short, keep the row and lateral raise and skip the optional posterior accessory.",
 		prescriptions: [
 			{
 				family: "squat",
@@ -95,11 +96,17 @@ const TEMPLATES: DayTemplate[] = [
 			},
 			{
 				family: "posterior",
-				preferred: ["Hip Thrust Machine", "Barbell Hip Thrust"],
+				preferred: [
+					"Roman Chair - Hip Extension",
+					"Lying Leg Curl",
+					"Seated Leg Curl",
+					"Barbell RDL",
+				],
 				sets: 2,
 				reps: 10,
 				intensity: 0.68,
 				priority: "optional",
+				note: "Do not auto-select hip thrust here; it appears in shared either/or blocks from the women's track.",
 			},
 			{
 				family: "shoulders",
@@ -567,11 +574,17 @@ function pickExercise(
 	}
 
 	const familyStats = stats
-		.filter((entry) => entry.family === prescription.family)
+		.filter(
+			(entry) =>
+				entry.family === prescription.family &&
+				isAllowedForPrescription(entry.title, prescription),
+		)
 		.sort((a, b) => b.sessions - a.sessions);
 	if (familyStats[0]) {
 		const catalogMatch = normalizedPool.find(
-			(entry) => detectFamily(entry.exercise.title) === prescription.family,
+			(entry) =>
+				detectFamily(entry.exercise.title) === prescription.family &&
+				isAllowedForPrescription(entry.exercise.title, prescription),
 		);
 		return {
 			exercise: catalogMatch?.exercise || statToExercise(familyStats[0]),
@@ -581,9 +594,13 @@ function pickExercise(
 	}
 
 	const fallback = normalizedPool.find(
-		(entry) => detectFamily(entry.exercise.title) === prescription.family,
+		(entry) =>
+			detectFamily(entry.exercise.title) === prescription.family &&
+			isAllowedForPrescription(entry.exercise.title, prescription),
 	)?.exercise ||
-		exercisePool[0] || { id: 0, title: prescription.family };
+		exercisePool.find((exercise) =>
+			isAllowedForPrescription(exercise.title, prescription),
+		) || { id: 0, title: prescription.family };
 	return { exercise: fallback, kind: "fallback" };
 }
 
@@ -683,6 +700,20 @@ function detectFamily(title: string): string {
 
 function normalize(value: string): string {
 	return value.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function isAllowedForPrescription(
+	title: string,
+	prescription: Prescription,
+): boolean {
+	if (
+		prescription.preferred.some(
+			(preferred) => normalize(preferred) === normalize(title),
+		)
+	) {
+		return true;
+	}
+	return !WOMENS_EITHER_OR_PATTERNS.some((pattern) => pattern.test(title));
 }
 
 function roundToIncrement(value: number, increment: number): number {
