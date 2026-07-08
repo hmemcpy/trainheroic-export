@@ -97,7 +97,10 @@ export function PlannerWorkspace({
 	);
 	const [pendingReplacement, setPendingReplacement] =
 		useState<CatalogExercise | null>(null);
-	const [undoPlan, setUndoPlan] = useState<GeneratedPlan | null>(null);
+	const [undoPlan, setUndoPlan] = useState<{
+		plan: GeneratedPlan;
+		label: string;
+	} | null>(null);
 	const [publishingAll, setPublishingAll] = useState(false);
 
 	const selectedWorkout =
@@ -140,8 +143,8 @@ export function PlannerWorkspace({
 			...plan.settings,
 			startDate: plan.settings.startDate,
 		});
+		setUndoPlan({ plan, label: "Regenerated plan" });
 		setPlan(nextPlan);
-		setUndoPlan(null);
 		setPendingReplacement(null);
 		setSelectedWorkoutId(nextPlan.workouts[0]?.id || "");
 		setSelectedExerciseId(
@@ -158,8 +161,8 @@ export function PlannerWorkspace({
 			return;
 		}
 		const nextPlan = adjustTrainingDays(plan, data, catalog, nextDays);
+		setUndoPlan({ plan, label: "Changed weekly days" });
 		setPlan(nextPlan);
-		setUndoPlan(null);
 		setPendingReplacement(null);
 		setSelectedWorkoutId(nextPlan.workouts[0]?.id || "");
 		setSelectedExerciseId(
@@ -169,8 +172,8 @@ export function PlannerWorkspace({
 
 	function updateStartWeek(startDate: string) {
 		const nextPlan = adjustStartDate(plan, data, catalog, startDate);
+		setUndoPlan({ plan, label: "Changed starting week" });
 		setPlan(nextPlan);
-		setUndoPlan(null);
 		setPendingReplacement(null);
 		setSelectedWorkoutId(nextPlan.workouts[0]?.id || "");
 		setSelectedExerciseId(
@@ -187,6 +190,9 @@ export function PlannerWorkspace({
 	) {
 		const numeric = field === "reps" ? parseInt(value, 10) : parseFloat(value);
 		if (Number.isNaN(numeric)) return;
+		const existing = exercise.sets.find((set) => set.id === setId);
+		if (existing?.[field] === numeric) return;
+		setUndoPlan({ plan, label: "Edited set" });
 		setPlan((current) =>
 			updatePlannedSet(current, workoutId, exercise.id, setId, {
 				[field]: numeric,
@@ -200,7 +206,7 @@ export function PlannerWorkspace({
 
 	function applyReplacement() {
 		if (!selectedWorkout || !selectedExercise || !pendingReplacement) return;
-		setUndoPlan(plan);
+		setUndoPlan({ plan, label: "Replaced exercise" });
 		setPlan((current) =>
 			replaceExercise(
 				current,
@@ -215,10 +221,15 @@ export function PlannerWorkspace({
 
 	function undoLastChange() {
 		if (!undoPlan) return;
-		setPlan(undoPlan);
+		setPlan(undoPlan.plan);
 		setUndoPlan(null);
 		setPendingReplacement(null);
 		toast.success("Restored previous plan");
+	}
+
+	function addSession() {
+		setUndoPlan({ plan, label: "Added session" });
+		setPlan((current) => addWorkout(current));
 	}
 
 	async function publishWorkout(workout: PlannedWorkout) {
@@ -298,9 +309,11 @@ export function PlannerWorkspace({
 							Starting week
 						</Label>
 						<Input
-							type="date"
-							value={plan.settings.startDate}
-							onChange={(event) => updateStartWeek(event.target.value)}
+							type="week"
+							value={toWeekInputValue(plan.settings.startDate)}
+							onChange={(event) =>
+								updateStartWeek(weekInputToDate(event.target.value))
+							}
 							className="mt-3 h-10 rounded-lg border-stone-100/20 bg-stone-100/10 text-stone-100"
 						/>
 						<p className="mt-3 text-xs text-stone-400">
@@ -393,7 +406,7 @@ export function PlannerWorkspace({
 					<div className="border-stone-100/10 border-t p-3">
 						<Button
 							className="w-full bg-stone-100 text-zinc-950 hover:bg-amber-200"
-							onClick={() => setPlan((current) => addWorkout(current))}
+							onClick={addSession}
 						>
 							<Plus />
 							Add Session
@@ -502,12 +515,19 @@ export function PlannerWorkspace({
 						<div className="grid gap-3">
 							<div className="rounded-xl border border-zinc-200 bg-white p-3">
 								<p className="text-xs font-bold tracking-[0.16em] text-zinc-500 uppercase">
-									Replacement
+									Plan edits
 								</p>
 								<p className="mt-2 text-sm font-semibold text-zinc-950">
 									{pendingReplacement
 										? pendingReplacement.title
-										: "Choose an exercise to preview"}
+										: "Choose a catalog exercise to preview"}
+								</p>
+								<p className="mt-1 text-xs text-zinc-500">
+									{pendingReplacement
+										? "Ready to replace the selected exercise."
+										: undoPlan
+											? `Last change: ${undoPlan.label}`
+											: "Catalog choices wait for Apply before changing the workout."}
 								</p>
 								<div className="mt-3 grid grid-cols-2 gap-2">
 									<Button
@@ -515,7 +535,7 @@ export function PlannerWorkspace({
 										disabled={!undoPlan}
 										onClick={undoLastChange}
 									>
-										Undo
+										Undo last
 									</Button>
 									<Button
 										className="bg-emerald-600 hover:bg-emerald-700"
@@ -877,4 +897,34 @@ function formatDate(dateStr: string): string {
 		month: "short",
 		day: "numeric",
 	});
+}
+
+function toWeekInputValue(dateStr: string): string {
+	const date = new Date(`${dateStr}T00:00:00`);
+	if (Number.isNaN(date.getTime())) return "";
+	const thursday = new Date(date);
+	const day = thursday.getDay() || 7;
+	thursday.setDate(thursday.getDate() + 4 - day);
+	const yearStart = new Date(thursday.getFullYear(), 0, 1);
+	const week = Math.ceil(
+		((thursday.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7,
+	);
+	return `${thursday.getFullYear()}-W${String(week).padStart(2, "0")}`;
+}
+
+function weekInputToDate(weekValue: string): string {
+	const [yearText, weekText] = weekValue.split("-W");
+	const year = Number(yearText);
+	const week = Number(weekText);
+	if (!year || !week) return new Date().toISOString().slice(0, 10);
+
+	const jan4 = new Date(year, 0, 4);
+	const jan4Day = jan4.getDay() || 7;
+	const monday = new Date(jan4);
+	monday.setDate(jan4.getDate() - jan4Day + 1 + (week - 1) * 7);
+	return [
+		monday.getFullYear(),
+		String(monday.getMonth() + 1).padStart(2, "0"),
+		String(monday.getDate()).padStart(2, "0"),
+	].join("-");
 }
