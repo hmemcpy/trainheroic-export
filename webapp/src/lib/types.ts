@@ -145,6 +145,7 @@ export interface PlannedExercise {
 	exercise_id: number;
 	title: string;
 	family: string;
+	priority: "main" | "secondary" | "pair" | "optional";
 	order: number;
 	video_url?: string;
 	instruction?: string;
@@ -166,6 +167,8 @@ export interface PlannedWorkout {
 	week: number;
 	dayIndex: number;
 	focus: string;
+	timeCapMinutes: number;
+	cutRule?: string;
 	blocks: PlannedBlock[];
 	status: "draft" | "publishing" | "published" | "error";
 	publishedId?: number;

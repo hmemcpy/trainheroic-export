@@ -27,6 +27,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { createWorkoutTemplate, publishProgramWorkout } from "@/lib/api";
 import {
 	addWorkout,
+	adjustTrainingDays,
 	catalogFamilies,
 	defaultPlanSettings,
 	generatePlan,
@@ -47,6 +48,16 @@ import type {
 	TrainHeroicTeam,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+const WEEK_DAYS = [
+	{ value: 0, label: "Sun" },
+	{ value: 1, label: "Mon" },
+	{ value: 2, label: "Tue" },
+	{ value: 3, label: "Wed" },
+	{ value: 4, label: "Thu" },
+	{ value: 5, label: "Fri" },
+	{ value: 6, label: "Sat" },
+];
 
 interface PlannerWorkspaceProps {
 	data: ExportData;
@@ -126,6 +137,22 @@ export function PlannerWorkspace({
 			...plan.settings,
 			startDate: plan.settings.startDate,
 		});
+		setPlan(nextPlan);
+		setSelectedWorkoutId(nextPlan.workouts[0]?.id || "");
+		setSelectedExerciseId(
+			nextPlan.workouts[0]?.blocks[0]?.exercises[0]?.id || "",
+		);
+	}
+
+	function toggleTrainingDay(day: number) {
+		const nextDays = plan.settings.trainingDays.includes(day)
+			? plan.settings.trainingDays.filter((value) => value !== day)
+			: [...plan.settings.trainingDays, day].sort((a, b) => a - b);
+		if (nextDays.length === 0) {
+			toast.error("Keep at least one training day");
+			return;
+		}
+		const nextPlan = adjustTrainingDays(plan, data, catalog, nextDays);
 		setPlan(nextPlan);
 		setSelectedWorkoutId(nextPlan.workouts[0]?.id || "");
 		setSelectedExerciseId(
@@ -235,6 +262,36 @@ export function PlannerWorkspace({
 							<Metric label="Days" value={plan.workouts.length} />
 							<Metric label="Sets" value={totalSets} />
 						</div>
+					</div>
+
+					<div className="border-stone-100/10 border-t p-5">
+						<p className="text-[0.65rem] font-bold tracking-[0.18em] text-stone-400 uppercase">
+							Weekly days
+						</p>
+						<div className="mt-3 grid grid-cols-4 gap-2">
+							{WEEK_DAYS.map((day) => {
+								const active = plan.settings.trainingDays.includes(day.value);
+								return (
+									<button
+										key={day.value}
+										type="button"
+										onClick={() => toggleTrainingDay(day.value)}
+										className={cn(
+											"rounded-lg border px-2 py-2 text-xs font-black transition",
+											active
+												? "border-amber-300 bg-amber-300 text-zinc-950"
+												: "border-stone-100/10 bg-stone-100/5 text-stone-300 hover:bg-stone-100/10",
+										)}
+									>
+										{day.label}
+									</button>
+								);
+							})}
+						</div>
+						<p className="mt-3 text-xs text-stone-400">
+							Default is 4 days. Adjust days anytime and regenerate the same
+							powerlifting skeleton.
+						</p>
 					</div>
 
 					<div className="border-stone-100/10 border-y p-5">
@@ -533,6 +590,12 @@ function WorkoutEditor({
 							/>
 						</div>
 						<div className="rounded-xl border border-zinc-200 bg-white px-4 py-2">
+							<p className="text-xs font-semibold text-zinc-500">Budget</p>
+							<p className="text-lg font-black text-zinc-950">
+								{workout.timeCapMinutes} min
+							</p>
+						</div>
+						<div className="rounded-xl border border-zinc-200 bg-white px-4 py-2">
 							<p className="text-xs font-semibold text-zinc-500">Volume</p>
 							<p className="text-lg font-black text-zinc-950">
 								{Math.round(volume.volume).toLocaleString()} kg
@@ -556,6 +619,12 @@ function WorkoutEditor({
 
 			<ScrollArea className="flex-1">
 				<div className="grid gap-4 p-5">
+					{workout.cutRule && (
+						<div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+							<p className="font-black">Session rule</p>
+							<p className="mt-1">{workout.cutRule}</p>
+						</div>
+					)}
 					{workout.blocks.map((block) => (
 						<div key={block.id}>
 							<div className="mb-3 flex items-center gap-2">
@@ -584,6 +653,14 @@ function WorkoutEditor({
 														{exercise.title}
 													</p>
 													<Badge
+														className={cn(
+															"rounded-md text-[0.65rem]",
+															priorityClass(exercise.priority),
+														)}
+													>
+														{exercise.priority}
+													</Badge>
+													<Badge
 														variant="outline"
 														className="rounded-md text-[0.65rem]"
 													>
@@ -593,6 +670,11 @@ function WorkoutEditor({
 												<p className="mt-1 text-xs text-zinc-500">
 													{exercise.family} / exercise #{exercise.exercise_id}
 												</p>
+												{exercise.instruction && (
+													<p className="mt-2 max-w-3xl text-xs leading-5 text-zinc-600">
+														{exercise.instruction}
+													</p>
+												)}
 											</div>
 											<Badge className="rounded-md bg-zinc-100 text-zinc-700">
 												{exercise.sets.length} sets
@@ -684,6 +766,13 @@ function LiftMax({ label, value }: { label: string; value?: number }) {
 			<span className="font-black text-amber-300">{value || "-"} kg</span>
 		</div>
 	);
+}
+
+function priorityClass(priority: PlannedExercise["priority"]): string {
+	if (priority === "main") return "bg-zinc-950 text-stone-100";
+	if (priority === "secondary") return "bg-emerald-100 text-emerald-800";
+	if (priority === "pair") return "bg-sky-100 text-sky-800";
+	return "bg-zinc-100 text-zinc-700";
 }
 
 function Insight({

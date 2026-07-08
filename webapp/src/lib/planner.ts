@@ -12,7 +12,7 @@ import type {
 } from "./types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const DEFAULT_DAYS = [0, 2, 4];
+const DEFAULT_DAYS = [0, 1, 3, 4];
 
 interface ExerciseStats {
 	exercise_id: number;
@@ -31,12 +31,14 @@ interface Prescription {
 	sets: number;
 	reps: number;
 	intensity: number;
+	priority: PlannedExercise["priority"];
 	note?: string;
 }
 
 interface DayTemplate {
 	focus: string;
 	title: string;
+	cutRule: string;
 	prescriptions: Prescription[];
 }
 
@@ -57,21 +59,27 @@ const FAMILY_PATTERNS: Array<[string, RegExp]> = [
 const TEMPLATES: DayTemplate[] = [
 	{
 		focus: "Squat + bench volume",
-		title: "Lower Primary / Bench Volume",
+		title: "Squat Priority / Bench Volume",
+		cutRule:
+			"If time runs short, keep the row and lateral raise and skip the hip thrust.",
 		prescriptions: [
 			{
 				family: "squat",
 				preferred: ["High Bar Back Squat", "Back Squat", "Barbell Back Squat"],
 				sets: 3,
 				reps: 5,
-				intensity: 0.76,
+				intensity: 0.78,
+				priority: "main",
+				note: "Main lift time box: 25-35 minutes including warmups. First work set may be a heavier triple, then two controlled backoffs.",
 			},
 			{
 				family: "bench",
 				preferred: ["Barbell Bench Press", "Bench Press"],
 				sets: 2,
 				reps: 10,
-				intensity: 0.72,
+				intensity: 0.7,
+				priority: "secondary",
+				note: "Bench is secondary today. Keep it to two useful volume sets.",
 			},
 			{
 				family: "row",
@@ -83,6 +91,7 @@ const TEMPLATES: DayTemplate[] = [
 				sets: 3,
 				reps: 10,
 				intensity: 0.7,
+				priority: "pair",
 			},
 			{
 				family: "posterior",
@@ -90,6 +99,7 @@ const TEMPLATES: DayTemplate[] = [
 				sets: 2,
 				reps: 10,
 				intensity: 0.68,
+				priority: "optional",
 			},
 			{
 				family: "shoulders",
@@ -97,19 +107,98 @@ const TEMPLATES: DayTemplate[] = [
 				sets: 2,
 				reps: 15,
 				intensity: 0.62,
+				priority: "optional",
 			},
 		],
 	},
 	{
-		focus: "Deadlift + upper pull",
-		title: "Deadlift Primary / Pull",
+		focus: "Bench priority + upper back",
+		title: "Paused Bench / Upper Back",
+		cutRule:
+			"Bench is the priority. If time runs short, keep the row and split squat and drop the curl/adduction slot.",
+		prescriptions: [
+			{
+				family: "bench",
+				preferred: [
+					"Barbell Bench Press - With Pause",
+					"Spoto Press",
+					"Tempo Bench Press",
+					"Bench Press without feet",
+				],
+				sets: 4,
+				reps: 3,
+				intensity: 0.8,
+				priority: "main",
+				note: "Paused bench intensity day. Keep all reps crisp and stop before grinding.",
+			},
+			{
+				family: "row",
+				preferred: [
+					"Seated Cable Row",
+					"Barbell Flexion Row",
+					"CHEST SUPPORTED T-BAR ROW",
+				],
+				sets: 3,
+				reps: 10,
+				intensity: 0.7,
+				priority: "pair",
+			},
+			{
+				family: "single-leg",
+				preferred: [
+					"DB Bulgarian Split Squat",
+					"FRONT FOOT ELEVATED DB SPLIT SQUAT",
+					"Deficit Bulgarian Split Squat",
+				],
+				sets: 2,
+				reps: 10,
+				intensity: 0.66,
+				priority: "pair",
+			},
+			{
+				family: "arms",
+				preferred: ["INCLINE DB CURL", "Cable Biceps Curl", "Hammer Curls"],
+				sets: 2,
+				reps: 12,
+				intensity: 0.62,
+				priority: "optional",
+			},
+			{
+				family: "squat",
+				preferred: ["Seated Hip Adduction Machine", "Leg Extension"],
+				sets: 2,
+				reps: 12,
+				intensity: 0.62,
+				priority: "optional",
+			},
+		],
+	},
+	{
+		focus: "Deadlift + posterior chain",
+		title: "Deadlift Priority / Upper Accessory",
+		cutRule:
+			"No heavy quad accessory after deadlifts unless the main lift moved fast and recovery is clearly good.",
 		prescriptions: [
 			{
 				family: "deadlift",
-				preferred: ["CONVENTIONAL DEADLIFT", "Deadlift"],
+				preferred: ["CONVENTIONAL DEADLIFT", "Deadlift", "PAUSE DEADLIFT"],
 				sets: 3,
-				reps: 4,
-				intensity: 0.78,
+				reps: 5,
+				intensity: 0.77,
+				priority: "main",
+				note: "Main lift time box: 25-35 minutes including warmups. First work set may be a double/triple, then two backoff fives.",
+			},
+			{
+				family: "pulldown",
+				preferred: [
+					"Hammer - Front Lat Pulldown",
+					"Pulldown - Underhand Grip",
+					"Close Grip Lat Pulldown",
+				],
+				sets: 3,
+				reps: 12,
+				intensity: 0.68,
+				priority: "pair",
 			},
 			{
 				family: "shoulders",
@@ -120,66 +209,8 @@ const TEMPLATES: DayTemplate[] = [
 				],
 				sets: 2,
 				reps: 10,
-				intensity: 0.68,
-			},
-			{
-				family: "pulldown",
-				preferred: [
-					"Hammer - Front Lat Pulldown",
-					"Pulldown - Underhand Grip",
-					"Close Grip Lat Pulldown",
-				],
-				sets: 3,
-				reps: 10,
-				intensity: 0.7,
-			},
-			{
-				family: "squat",
-				preferred: ["Pendulum Squat", "HACK SQUAT MACHINE"],
-				sets: 2,
-				reps: 12,
-				intensity: 0.65,
-			},
-			{
-				family: "chest",
-				preferred: ["Flat DB Fly", "CABLE FLY", "Incline Db Fly"],
-				sets: 2,
-				reps: 12,
-				intensity: 0.64,
-			},
-		],
-	},
-	{
-		focus: "Bench primary + single leg",
-		title: "Bench Primary / Accessories",
-		prescriptions: [
-			{
-				family: "bench",
-				preferred: [
-					"Barbell Bench Press - With Pause",
-					"Tempo Bench Press",
-					"Bench Press without feet",
-				],
-				sets: 4,
-				reps: 4,
-				intensity: 0.78,
-			},
-			{
-				family: "single-leg",
-				preferred: [
-					"DB Bulgarian Split Squat",
-					"FRONT FOOT ELEVATED DB SPLIT SQUAT",
-				],
-				sets: 2,
-				reps: 10,
 				intensity: 0.66,
-			},
-			{
-				family: "row",
-				preferred: ["Barbell Flexion Row", "Seated Cable Row", "Pendlay Row"],
-				sets: 3,
-				reps: 10,
-				intensity: 0.68,
+				priority: "pair",
 			},
 			{
 				family: "posterior",
@@ -187,13 +218,87 @@ const TEMPLATES: DayTemplate[] = [
 				sets: 2,
 				reps: 12,
 				intensity: 0.64,
+				priority: "optional",
 			},
 			{
-				family: "arms",
-				preferred: ["INCLINE DB CURL", "Cable Biceps Curl", "Hammer Curls"],
+				family: "chest",
+				preferred: ["Flat DB Fly", "CABLE FLY", "Incline Db Fly"],
 				sets: 2,
 				reps: 12,
 				intensity: 0.62,
+				priority: "optional",
+			},
+		],
+	},
+	{
+		focus: "Secondary lower + bench variation",
+		title: "Secondary Lower / Bench Variation",
+		cutRule:
+			"This is a medium day, not another max-effort squat day. Keep accessories if they do not threaten the next main lift.",
+		prescriptions: [
+			{
+				family: "squat",
+				preferred: [
+					"Pause Back Squat",
+					"Pendulum Squat",
+					"HACK SQUAT MACHINE",
+					"High Bar Back Squat",
+				],
+				sets: 3,
+				reps: 6,
+				intensity: 0.68,
+				priority: "main",
+				note: "Technique or joint-friendly lower slot. Keep it medium and controlled.",
+			},
+			{
+				family: "bench",
+				preferred: [
+					"Spoto Press",
+					"Tempo Bench Press",
+					"Bench Press without feet",
+					"DB Bench Press - Flat",
+				],
+				sets: 3,
+				reps: 6,
+				intensity: 0.7,
+				priority: "secondary",
+				note: "Bench variation slot. Rotate every 4 weeks while keeping the bench frequency stable.",
+			},
+			{
+				family: "pulldown",
+				preferred: [
+					"Pulldown - Underhand Grip",
+					"Pull Up - Parallel Grip",
+					"PULLDOWN - OverHand GRIP",
+				],
+				sets: 3,
+				reps: 10,
+				intensity: 0.68,
+				priority: "pair",
+			},
+			{
+				family: "arms",
+				preferred: [
+					"Tricep Pushdown",
+					"Leaning Overhead Cable Tricep Extension",
+					"INCLINE DB CURL",
+				],
+				sets: 2,
+				reps: 12,
+				intensity: 0.62,
+				priority: "optional",
+			},
+			{
+				family: "core",
+				preferred: [
+					"Hollow Hold With Leg Raises",
+					"Bench Reverse Crunch",
+					"Hollow Hold",
+				],
+				sets: 2,
+				reps: 10,
+				intensity: 0,
+				priority: "optional",
 			},
 		],
 	},
@@ -235,6 +340,8 @@ export function generatePlan(
 			week,
 			dayIndex: index % settings.trainingDays.length,
 			focus: template.focus,
+			timeCapMinutes: 90,
+			cutRule: template.cutRule,
 			status: "draft",
 			blocks: [
 				{
@@ -363,6 +470,19 @@ export function addWorkout(
 	return { ...plan, workouts: [...plan.workouts, clone] };
 }
 
+export function adjustTrainingDays(
+	plan: GeneratedPlan,
+	data: ExportData,
+	catalog: CatalogExercise[],
+	trainingDays: number[],
+): GeneratedPlan {
+	const days = trainingDays.length > 0 ? trainingDays : DEFAULT_DAYS;
+	return generatePlan(data, catalog, {
+		...plan.settings,
+		trainingDays: days,
+	});
+}
+
 export function catalogFamilies(catalog: CatalogExercise[]): string[] {
 	return Array.from(
 		new Set(catalog.map((exercise) => detectFamily(exercise.title))),
@@ -403,6 +523,7 @@ function createPlannedExercise({
 		exercise_id: match.exercise.id,
 		title: match.exercise.title,
 		family: prescription.family,
+		priority: prescription.priority,
 		order: order + 1,
 		video_url: match.exercise.video_url,
 		instruction: prescription.note,
@@ -431,9 +552,10 @@ function pickExercise(
 		exercise,
 		key: normalize(exercise.title),
 	}));
+	const blockIndex = Math.floor((week - 1) / 4);
 	const preferred =
-		week >= 3 && prescription.preferred.length > 1
-			? prescription.preferred.slice(1)
+		blockIndex > 0 && prescription.preferred.length > 1
+			? rotate(prescription.preferred, blockIndex)
 			: prescription.preferred;
 
 	for (const title of preferred) {
@@ -565,6 +687,11 @@ function normalize(value: string): string {
 
 function roundToIncrement(value: number, increment: number): number {
 	return Math.round(value / increment) * increment;
+}
+
+function rotate<T>(items: T[], amount: number): T[] {
+	const shift = amount % items.length;
+	return [...items.slice(shift), ...items.slice(0, shift)];
 }
 
 function statToExercise(stat: ExerciseStats): Exercise {
